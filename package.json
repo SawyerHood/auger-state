@@ -1,7 +1,7 @@
 {
   "name": "auger-state",
   "version": "1.0.0",
-  "description": "Hook based state management for React",
+  "description": "Magical state management for React that lets you only subscribe to part of your state.",
   "author": "SawyerHood",
   "license": "MIT",
   "repository": "SawyerHood/auger-state",
@@ -17,7 +17,7 @@
     "prepare": "run-s build",
     "test": "run-s test:unit test:lint test:build",
     "test:build": "run-s build",
-    "test:lint": "eslint .",
+    "test:lint": "eslint src/**/*",
     "test:unit": "cross-env CI=1 react-scripts test --env=jsdom",
     "test:watch": "react-scripts test --env=jsdom",
     "predeploy": "cd example && npm install && npm run build",

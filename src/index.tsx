@@ -1,30 +1,111 @@
 import * as React from 'react';
 import ReactDOM from 'react-dom';
-import { produceWithPatches, Draft, enablePatches, setAutoFreeze } from 'immer';
+import type {Draft} from 'immer';
+import {produceWithPatches, enablePatches, setAutoFreeze} from 'immer';
 enablePatches();
 setAutoFreeze(false);
 
-const { useRef, useEffect, useContext, useState, useCallback } = React;
+const {useRef, useEffect, useContext, useState, useCallback} = React;
 
+// This function is a function that will be triggered when a node in the
+// subscriber tree updates
 type Subscription = () => void;
 
-type SubsciberNode = {
+/*
+SubscriberNode is the type that makes the AugerStore work. Most app states
+end up being large, nested JS objects, which can be thought of as trees.
+
+Imagine that we have an application state that looks something like this:
+
+```
+type State = {
+  counter: {value: number};
+  user: {name: string; age: string};
+};
+```
+
+This could be visualized as a tree like so:
+
+state
+├── counter
+│   └── value
+└── user
+    ├── name
+    └── age
+
+In this example, each line is a different subscriber node with a set of all
+of callbacks to be called when the node updates and a list of all children.
+
+AugerStore uses immer to update the state which means that we know the actual
+subset of state was changed and we only have to subscribers listening to those
+subtrees.
+
+Imagine that I update the state like so:
+
+```
+store.update(state => {
+  state.user.age++
+})
+```
+
+In this case we only have to notify subscribers that were listening above the path
+that was updated. In the figure below nodes that had there subscription triggered are
+denoted with an '*'.
+
+*state
+├── counter
+│   └── value
+└── *user
+    ├── name
+    └── *age
+
+Note that anything listening to the root or user have to be notified because they will
+end up with new object references after this update. All of the parts of the state that
+aren't updated (ex the user name and the counter) won't have their subscribers notified!
+
+One thing to note, if you set a property that has children ALL of the children have to
+be notified recursively. Ex if we do this:
+
+```
+store.update(state => {
+  state.user = {name: 'Sawyer', age: 26}
+})
+```
+
+We now have to update all listeners down stream of user:
+
+*state
+├── counter
+│   └── value
+└── *user
+    ├── *name
+    └── *age
+
+*/
+type SubscriberNode = {
   subs: Set<Subscription>;
-  children: Map<SubKey, SubsciberNode>;
+  children: Map<SubKey, SubscriberNode>;
 };
 
-function createSubNode(): SubsciberNode {
-  return { subs: new Set(), children: new Map() };
+function createSubNode(): SubscriberNode {
+  return {subs: new Set(), children: new Map()};
 }
 
+// This is the class that manages all of the subscriptions to different nodes,
+// is responsible for keeping a copy of the current state, updates the state,
+// and most importantly notifies subscribers when the state updates.
 export class AugerStore<T> {
-  root: SubsciberNode = createSubNode();
+  root: SubscriberNode = createSubNode();
   state: T;
 
   constructor(state: T) {
     this.state = state;
   }
 
+  // Takes a path to the property in the state and a callback to be triggered
+  // when that part of the state changes. This function walks down the path
+  // and creates SubscriberNodes as needed from the root until we are at the
+  // terminal of the path.
   subscribe(path: SubKey[], sub: Subscription): () => void {
     let node = this.root;
     for (const key of path) {
@@ -37,14 +118,24 @@ export class AugerStore<T> {
       }
     }
     node.subs.add(sub);
+
+    // TODO Sawyer: This should do some garbage collection of abandoned subscriber
+    // nodes
     return () => {
       node.subs.delete(sub);
     };
   }
 
+  // This updates the state and notifies the subscribers of the changed
+  // properties. It takes an updater function that takes in an immer draft
+  // of the state. This function that reads the JSON patches outputted by
+  // immer to notify subscribers for the properties changed.
   update(fn: (draft: Draft<T>) => void | T) {
     const [nextState, patches] = produceWithPatches(this.state, fn);
     this.state = nextState as T;
+
+    // TODO Sawyer: I should make sure that this works with React Native.
+    // I need to update this so it uses the ReactNative version of batchedUpdates.
     ReactDOM.unstable_batchedUpdates(() => {
       for (const patch of patches) {
         this.notifyPath(patch.path);
@@ -52,13 +143,16 @@ export class AugerStore<T> {
     });
   }
 
-  private notifyAllChildren(node: SubsciberNode) {
+  // Recursively notify all children of a SubscriberNode
+  private notifyAllChildren(node: SubscriberNode) {
     node.subs.forEach((s) => s());
     for (const child of node.children.values()) {
       this.notifyAllChildren(child);
     }
   }
 
+  // This notifies all of the nodes along the path to the terminal property
+  // and from there it notifies all of the children in a recursive manner.
   private notifyPath(path: SubKey[]) {
     let node = this.root;
     node.subs.forEach((s) => s());
@@ -79,16 +173,29 @@ export class AugerStore<T> {
   }
 }
 
+// All of the valid properties keys of an object
 type SubKey = string | number | symbol;
 
+// This is a callback that updates the state
 type UpdateFn<T> = (draft: Draft<T>) => Draft<T> | void;
 
+// This is the special interface of an Auger.
 interface AugerHandles<T> {
+  // Returns the current value at a property.
+  // When called from a React component this also sets up a subscription
+  // To the store.
   $read(): T;
+  // This updates this property in the store.
   $update(updater: UpdateFn<T>): void;
+  // This both returns the current value of the property
+  // and returns a function that can be called to update
+  // the property. This is made to emulate the return shape
+  // of the `useState` hook.
   $(): [T, (updater: UpdateFn<T>) => void];
 }
 
+// This helper type returns if the type can be null | undefined
+// and returns never if it can't be either
 type NullPart<T> = T extends undefined | null
   ? T
   : T extends undefined
@@ -97,7 +204,17 @@ type NullPart<T> = T extends undefined | null
   ? T
   : never;
 
-type Auger<T> = (T extends number
+// In the real world an Auger is a large drill that is used for drilling holes
+// in the ground. In auger-state an Auger is an object that lets you drill down
+// into your state and only subscribe to parts of it. In React you will interface
+// with this via the useAuger hook.
+//
+// This type is a little complex. It checks if the node is a primitive and if so
+// sets the type for that node as the AugerHandles. If the type is an object or array
+// we iterate over all of the values and make sure that are mapped to Augers as well.
+// An important thing to note, if the current node can be nullable, we have to make
+// sure that all of the children's return types can be nullable as well.
+export type Auger<T> = (T extends number
   ? {}
   : T extends string
   ? {}
@@ -112,17 +229,19 @@ type Auger<T> = (T extends number
     >) &
   AugerHandles<T>;
 
+// This builds up the `$`, `$read`, and `$update` function for a given node.
 function createAugerHandles<T>(
   state: T,
   path: SubKey[],
   onSub: (p: SubKey[]) => void,
-  store: AugerStore<any>
+  store: AugerStore<any>,
 ): AugerHandles<T> {
   const $read = () => {
     onSub(path);
     return state;
   };
 
+  // TODO Sawyer: This can probably be cached based on store and path
   const $update = (fn: UpdateFn<T>) => {
     store.update((draft) => {
       let subNode = draft;
@@ -152,7 +271,7 @@ function createAugerHandles<T>(
   return {
     $read,
     $update,
-    $
+    $,
   };
 }
 
@@ -160,7 +279,7 @@ function createAuger<T extends any>(
   state: T,
   path: SubKey[],
   onSub: (p: SubKey[]) => void,
-  store: AugerStore<any>
+  store: AugerStore<any>,
 ): Auger<T> {
   if (typeof state !== 'object' || state == null) {
     return createAugerHandles(state, path, onSub, store) as any;
@@ -171,18 +290,27 @@ function createAuger<T extends any>(
         return createAugerHandles(target, path, onSub, store)[key];
       }
       return createAuger(target[key], [...path, key], onSub, store);
-    }
+    },
   }) as any;
 }
 
 export const AugerStoreContext = React.createContext<AugerStore<any> | null>(
-  null
+  null,
 );
 
-export function useAuger<T>(): Auger<T> {
-  const store = useContext(AugerStoreContext)!;
+// This is the main public interface that React users interface with.
+// The useAuger hook creates an Auger for the given store. If a store
+// isn't provided it will attempt to read one from context. The auger
+// Returned from this hook can be used to subscribe to parts of the
+// app state. Ex:
+//
+// const [counter, updateCounter] = auger.counter.$();
+//
+export function useAuger<T>(inputStore?: AugerStore<T>): Auger<T> {
+  const contextStore = useContext(AugerStoreContext)!;
   const subs = useRef<SubKey[][]>([]);
   const [, updateCounter] = useState(0);
+  const store = inputStore ?? contextStore;
   const rerender = useCallback(() => {
     updateCounter((i) => i + 1);
   }, [updateCounter]);
@@ -202,6 +330,6 @@ export function useAuger<T>(): Auger<T> {
     store.state as T,
     [],
     (p) => subs.current.push(p),
-    store
+    store,
   ) as any;
 }

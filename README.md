@@ -1,8 +1,10 @@
 # auger-state
 
-> Hook based state management for React
+> Delightful global state management for React that lets components subscribe to only a subset of state.
 
-[![NPM](https://img.shields.io/npm/v/auger-state.svg)](https://www.npmjs.com/package/auger-state) [![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com)
+[![NPM](https://img.shields.io/npm/v/auger-state.svg)](https://www.npmjs.com/package/auger-state)
+
+## About
 
 ## Install
 
@@ -10,19 +12,45 @@
 npm install --save auger-state
 ```
 
-## Usage
+## Example
 
 ```tsx
-import React, { Component } from 'react'
+type Item = { id: string; name: string };
 
-import MyComponent from 'auger-state'
-import 'auger-state/dist/index.css'
+type State = {
+  counter: { value: number };
+  items: Item[];
+};
 
-class Example extends Component {
-  render() {
-    return <MyComponent />
-  }
-}
+const INITIAL_STATE: State = {
+  counter: { value: 5 },
+  items: [
+    { id: 'a', count: 6, name: 'PS5' },
+    { id: 'b', count: 12, name: 'Xbox Series X' }
+  ]
+};
+
+const store = new AugerStore(INITIAL_STATE);
+
+export const Counter = React.memo(() => {
+  const auger = useAuger(store);
+  // This component will only update when the counter updates, not when any other part of the state updates
+  const [counter, updateCounter] = auger.counter.$();
+
+  return (
+    <div>
+      <button
+        onClick={() =>
+          updateCounter((c) => {
+            c++;
+          })
+        }
+      >
+        +
+      </button>
+    </div>
+  );
+});
 ```
 
 ## License
