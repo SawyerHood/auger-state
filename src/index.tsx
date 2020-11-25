@@ -5,7 +5,7 @@ import {produceWithPatches, enablePatches, setAutoFreeze} from 'immer';
 enablePatches();
 setAutoFreeze(false);
 
-const {useRef, useEffect, useContext, useState, useCallback} = React;
+const {useRef, useEffect, useState} = React;
 
 // This function is a function that will be triggered when a node in the
 // subscriber tree updates
@@ -294,26 +294,20 @@ function createAuger<T extends any>(
   }) as any;
 }
 
-export const AugerStoreContext = React.createContext<AugerStore<any> | null>(
-  null,
-);
-
 // This is the main public interface that React users interface with.
-// The useAuger hook creates an Auger for the given store. If a store
-// isn't provided it will attempt to read one from context. The auger
-// Returned from this hook can be used to subscribe to parts of the
+// The useAuger hook creates an Auger for the given store. The Auger
+// returned from this hook can be used to subscribe to parts of the
 // app state. Ex:
 //
 // const [counter, updateCounter] = auger.counter.$();
 //
-export function useAuger<T>(inputStore?: AugerStore<T>): Auger<T> {
-  const contextStore = useContext(AugerStoreContext)!;
+export function useAuger<T>(store: AugerStore<T>): Auger<T> {
   const subs = useRef<SubKey[][]>([]);
   const [, updateCounter] = useState(0);
-  const store = inputStore ?? contextStore;
-  const rerender = useCallback(() => {
+  const rerender = () => {
     updateCounter((i) => i + 1);
-  }, [updateCounter]);
+  };
+
   useEffect(() => {
     const unsubs: (() => void)[] = [];
     for (const path of subs.current) {
@@ -326,6 +320,7 @@ export function useAuger<T>(inputStore?: AugerStore<T>): Auger<T> {
       }
     };
   });
+
   return createAuger(
     store.state as T,
     [],

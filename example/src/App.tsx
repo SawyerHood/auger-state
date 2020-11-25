@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {AugerStore, AugerStoreContext, useAuger} from 'auger-state';
+import {AugerStore, useAuger} from 'auger-state';
 import faker from 'faker';
 
 type Item = {id: string; count: number; name: string};
@@ -20,7 +20,7 @@ const state: State = {
 const store = new AugerStore(state);
 
 const ItemComp = React.memo((props: {id: number}) => {
-  const state = useAuger<State>();
+  const state = useAuger(store);
   const [item, updateItem] = state.items[props.id].$();
 
   return (
@@ -44,7 +44,7 @@ const ItemComp = React.memo((props: {id: number}) => {
 ItemComp.displayName = 'Item';
 
 const Items = React.memo(() => {
-  const state = useAuger<State>();
+  const state = useAuger(store);
   const [items, updateItems] = state.items.$();
   const onClick = () => {
     updateItems((draft) => {
@@ -90,7 +90,7 @@ const Body = React.memo(() => {
 });
 
 const Counter = React.memo(() => {
-  const state = useAuger<State>();
+  const state = useAuger(store);
   const [counter, updateCounter] = state.counter.$();
 
   return (
@@ -112,9 +112,9 @@ const Counter = React.memo(() => {
 
 export default function App() {
   return (
-    <AugerStoreContext.Provider value={store}>
+    <>
       <Counter />
       <Body />
-    </AugerStoreContext.Provider>
+    </>
   );
 }
