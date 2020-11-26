@@ -8,6 +8,12 @@
   "main": "dist/index.js",
   "module": "dist/index.modern.js",
   "source": "src/index.tsx",
+  "keywords": [
+    "react",
+    "state",
+    "auger",
+    "hooks"
+  ],
   "engines": {
     "node": ">=10"
   },
