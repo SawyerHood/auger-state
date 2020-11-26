@@ -59,8 +59,7 @@
     "typescript": "^3.7.5"
   },
   "files": [
-    "dist",
-    "logo.svg"
+    "dist"
   ],
   "dependencies": {
     "immer": "^8.0.0"
