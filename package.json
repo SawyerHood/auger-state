@@ -1,7 +1,7 @@
 {
   "name": "auger-state",
   "version": "1.0.0",
-  "description": "Magical state management for React that lets you only subscribe to part of your state.",
+  "description": "Delightful, hook-first, global state management for React that lets components drill down and subscribe to only the parts of the state that they need.",
   "author": "SawyerHood",
   "license": "MIT",
   "repository": "SawyerHood/auger-state",
@@ -59,7 +59,8 @@
     "typescript": "^3.7.5"
   },
   "files": [
-    "dist"
+    "dist",
+    "logo.svg"
   ],
   "dependencies": {
     "immer": "^8.0.0"
