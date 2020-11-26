@@ -6,7 +6,7 @@
 
 ## Overview
 
-An auger is a large drilled used to bore holes in the ground. `auger-state` lets your components drill down and subscribe only to parts of your global state. `auger-state` merges the benefits of a global app-level store and merges it with the performance of decentralized state management.
+An auger is a large drilled used to bore holes in the ground. `auger-state` lets your components drill down and subscribe only to parts of your global state. `auger-state` merges the benefits of a global app-level store and merges it with the performance of decentralized state management. It is designed with Typescript in mind so you get type-safely and solid auto complete when using it.
 
 At the moment `auger-state` is still a new library and the API will likely change. I would stick to using it for internal tools and personal projects until it becomes more battle tested.
 
@@ -22,13 +22,13 @@ npm install --save auger-state
 import React from 'react';
 import {useAuger, AugerStore} from 'auger-state';
 
-type Item = {id: string; name: string};
-
+// Create a type for our AppState
 type State = {
   counter: {value: number};
-  items: Item[];
+  items: {id: string; name: string}[];
 };
 
+// Starting value of our state
 const INITIAL_STATE: State = {
   counter: {value: 5},
   items: [
@@ -37,17 +37,23 @@ const INITIAL_STATE: State = {
   ],
 };
 
+// Create our global store
 const store = new AugerStore(INITIAL_STATE);
 
 export const Counter = React.memo(() => {
+  // The useAuger callback returns a typed object that will
+  // let us drill down and subscribe to part of our state
   const auger = useAuger(store);
-  // This component will only update when the counter updates, not when any other part of the state updates
+  // This component will only update when the counter updates,
+  //  not when any other part of the state updates
   const [counter, updateCounter] = auger.counter.$();
 
   return (
     <div>
       <button
         onClick={() =>
+          // Increment the counter on click. Update callbacks pass an immer
+          // draft so you can mutate the value directly
           updateCounter((c) => {
             c.value++;
           })
@@ -68,6 +74,7 @@ In multiple times in my career I've written large, performance sensitive React a
 1. Redux Dev Tools integration
 2. Effect system
 3. Test coverage
+4. Allow you to tag actions for dev tools
 
 ## License
 
