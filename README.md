@@ -20,7 +20,7 @@ npm install --save auger-state
 
 ```tsx
 import React from 'react';
-import {useAuger, AugerStore} from 'auger-state';
+import {useAuger, createStore} from 'auger-state';
 
 // Create a type for our AppState
 type State = {
@@ -38,7 +38,7 @@ const INITIAL_STATE: State = {
 };
 
 // Create our global store
-const store = new AugerStore(INITIAL_STATE);
+const store = createStore(INITIAL_STATE);
 
 export const Counter = React.memo(() => {
   // The useAuger callback returns a typed object that will

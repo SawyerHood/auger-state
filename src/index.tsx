@@ -94,7 +94,7 @@ function createSubNode(): SubscriberNode {
 // This is the class that manages all of the subscriptions to different nodes,
 // is responsible for keeping a copy of the current state, updates the state,
 // and most importantly notifies subscribers when the state updates.
-export class AugerStore<T> {
+class AugerStore<T> {
   root: SubscriberNode = createSubNode();
   state: T;
 
@@ -327,4 +327,8 @@ export function useAuger<T>(store: AugerStore<T>): Auger<T> {
     (p) => subs.current.push(p),
     store,
   ) as any;
+}
+
+export function createStore<T>(state: T): AugerStore<T> {
+  return new AugerStore(state);
 }

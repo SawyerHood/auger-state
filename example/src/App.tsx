@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {AugerStore, useAuger} from 'auger-state';
+import {createStore, useAuger} from 'auger-state';
 import faker from 'faker';
 
 type Item = {id: string; count: number; name: string};
@@ -17,7 +17,7 @@ const state: State = {
   ],
 };
 
-const store = new AugerStore(state);
+const store = createStore(state);
 
 const ItemComp = React.memo((props: {id: number}) => {
   const state = useAuger(store);
