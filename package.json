@@ -1,6 +1,6 @@
 {
   "name": "auger-state",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Delightful, hook-first, global state management for React that lets components drill down and subscribe to only the parts of the state that they need.",
   "author": "SawyerHood",
   "license": "MIT",
