@@ -144,6 +144,10 @@ class AugerStore<T> {
   }
 
   // Recursively notify all children of a SubscriberNode
+  // We might want to clear all of these subscriptions as we go down
+  // in the future, but the hooks takes care of this for us, if you
+  // call subscribe manually you are responsible for removing the
+  // sub if the node doesn't exist
   private notifyAllChildren(node: SubscriberNode) {
     node.subs.forEach((s) => s());
     for (const child of node.children.values()) {
