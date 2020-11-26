@@ -1,4 +1,4 @@
-![auger-state logo](./logo.svg)
+![auger-state logo](https://user-images.githubusercontent.com/2380669/100394287-67cc5400-2ff1-11eb-8cb0-9ec361244cb9.png)
 
 > Delightful, hook-first, global state management for React that lets components drill down and subscribe to only the parts of the state that they need.
 
