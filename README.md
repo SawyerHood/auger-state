@@ -106,6 +106,62 @@ const store = createStore(initialState);
 const auger = useAuger(store);
 ```
 
+## `useAuger`
+
+`useAuger` is the hook that is used to access data in the store. It returns an `Auger`. IRL an Auger is a large drill. The `Auger` returned by `useAuger` is a data structure with the same shape as your state and it lets you drill down into your state and subscribe to specific parts of it.
+
+### Definition
+
+```ts
+export declare function useAuger<T>(store: AugerStore<T>): Auger<T>;
+```
+
+### Example
+
+```tsx
+import {createStore} from 'auger-state';
+import React from 'react';
+
+const initialState = {
+  userPreferences: {tabSpacing: 4, favoriteFood: 'tofu'},
+  counter: {value: 0},
+};
+
+const store = createStore(initialState);
+
+const MyComponent = React.memo(() => {
+  const auger = useAuger(store);
+
+  // The $read() method returns the value
+  // from the store and subscribes the component
+  // to update when that value changes
+  const tabSpacing = auger.userPreferences.tabSpacing.$read();
+
+  // The $() method returns a tuple of the current value and an updater function.
+  // This is a shorthand made to emulate the return value from useState.
+
+  const [counter, updateCounter] = auger.counter.$();
+
+  return (
+    <div>
+      <div>Tab Spacing: {tabSpacing}</div>
+      <button onClick={() => updateCounter((counter) => counter.value++)}>
+        {counter.value}
+      </button>
+      <button
+        onClick={() =>
+        // $update lets you update a part of the state.
+          auger.userPreferences.$update(
+            (userPreferences) => {userPreferences.favoriteFood = 'Pizza'),
+            }
+        }>
+        Make Favorite Food Pizza
+      </button>
+    </div>
+  );
+});
+```
+
 ## `AugerStore`
 
 In most cases you will never have to interact with the `AugerStore` directly and will instead just pass it to the `useAuger` hook in your React component. The only time you will probably have to interact with `AugerStore` if you want to either use `AugerStore` with a UI library other than React or if you want to perform some side effects when ever the store changes (ex send something over the network or log when a certain part of the state changes).
@@ -163,8 +219,6 @@ store.update((draft) => {
 unsubLogging();
 unsubLocalStorage();
 ```
-
-## `useAuger`
 
 # Backstory
 
