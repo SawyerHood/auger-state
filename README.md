@@ -220,10 +220,6 @@ unsubLogging();
 unsubLocalStorage();
 ```
 
-# Backstory
-
-In multiple times in my career I've written large, performance sensitive React apps. At Facebook I worked on a React WYSIWYG editor that let designers drag and manipulate React components visually. Now at Figma I work on a design tool that allows for users to do complex vector editing in the browser. In both of these situations you have a myriad of complex controls that need access. There is a level of convenience to keeping your application state in a global store. It makes it simpler to observe the state of your entire application and can make onboarding new engineers more streamlined. One of the major tradeoffs to a global, centralized, immutable store is that they will eventually lead to performance issues down the line once you have enough components that depend on the store. Redux tries to get around this by having you select only parts of the store you need (using useSelector), but you still have to run the selectors for every component that uses useSelector.
-
 # Roadmap
 
 1. Redux Dev Tools integration
