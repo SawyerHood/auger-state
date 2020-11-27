@@ -28,6 +28,8 @@ npm install --save auger-state
 
 # Example
 
+[![Edit Auger State Example](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/s/auger-state-example-x2qpn?fontsize=14&hidenavigation=1&theme=dark)
+
 ```tsx
 import React from 'react';
 import {useAuger, createStore} from 'auger-state';
@@ -42,15 +44,15 @@ type State = {
 const INITIAL_STATE: State = {
   counter: {value: 5},
   items: [
-    {id: 'a', count: 6, name: 'PS5'},
-    {id: 'b', count: 12, name: 'Xbox Series X'},
+    {id: 'a', name: 'PS5'},
+    {id: 'b', name: 'Xbox Series X'},
   ],
 };
 
 // Create our global store
 const store = createStore(INITIAL_STATE);
 
-export const Counter = React.memo(() => {
+export const App = React.memo(() => {
   // The useAuger callback returns a typed object that will
   // let us drill down and subscribe to part of our state
   const auger = useAuger(store);
@@ -60,6 +62,7 @@ export const Counter = React.memo(() => {
 
   return (
     <div>
+      <h1>Counter: {counter.value}</h1>
       <button
         onClick={() =>
           // Increment the counter on click. Update callbacks pass an immer
