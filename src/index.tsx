@@ -95,11 +95,15 @@ function createSubNode(): SubscriberNode {
 // is responsible for keeping a copy of the current state, updates the state,
 // and most importantly notifies subscribers when the state updates.
 class AugerStore<T> {
-  root: SubscriberNode = createSubNode();
-  state: T;
+  private root: SubscriberNode = createSubNode();
+  private state: T;
 
   constructor(state: T) {
     this.state = state;
+  }
+
+  getState(): Readonly<T> {
+    return this.state;
   }
 
   // Takes a path to the property in the state and a callback to be triggered
@@ -326,7 +330,7 @@ export function useAuger<T>(store: AugerStore<T>): Auger<T> {
   });
 
   return createAuger(
-    store.state as T,
+    store.getState() as T,
     [],
     (p) => subs.current.push(p),
     store,
