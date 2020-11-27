@@ -79,6 +79,91 @@ export const Counter = React.memo(() => {
 
 ## `createStore`
 
+`createStore` takes a single POJO (plain old js object) and returns an `AugerStore` that holds the state. At this time, your state has to be comprised of plain objects, arrays, and primitives. It does not yet support Maps and Sets
+
+### Definition
+
+```ts
+export declare function createStore<T>(state: T): AugerStore<T>;
+```
+
+### Example
+
+```ts
+import {createStore, useAuger} from 'auger-state';
+
+const initialState = {
+  todos: [
+    {name: 'Buy Eggs', isDone: false},
+    {name: 'Wear a Mask', isDone: false},
+  ],
+};
+
+const store = createStore(initialState);
+
+// ... inside of a React component
+
+const auger = useAuger(store);
+```
+
+## `AugerStore`
+
+In most cases you will never have to interact with the `AugerStore` directly and will instead just pass it to the `useAuger` hook in your React component. The only time you will probably have to interact with `AugerStore` if you want to either use `AugerStore` with a UI library other than React or if you want to perform some side effects when ever the store changes (ex send something over the network or log when a certain part of the state changes).
+
+The first method on `AugerStore` is `getState`. It does just what you think it would, return a readonly copy of the state at that point in time. Note that this copy of the state is immutable and won't update as the store updates. You can think of this as a snapshot in time.
+
+The next method on `AugerStore` is `subscribe`. The purpose of `subscribe` is to notify observers if a certain part of the state has been updated. `subscribe` takes 2 parameters. The first is a path of property names that leads to the subset of your state. The second parameter is a callback that should be invoked when that subset of state changes. `subscribe` returns a single function that will unsubscribe the registered callback. To prevent memory leaks always make sure that you call unsubscribe when you are done subscribing to the store.
+
+The final method on `AugerStore` is `update` which takes a single producer function. This is an immer `producer` function that passes a draft copy of your state that can be directly mutated. If you haven't seen immer before you can [check out the docs](https://immerjs.github.io/immer/docs/introduction).
+
+### Definition
+
+```ts
+declare class AugerStore<T> {
+  getState(): Readonly<T>;
+  subscribe(path: SubKey[], callback: () => void): () => void;
+  update(fn: (draft: Draft<T>) => void | T): void;
+}
+```
+
+### Example
+
+```ts
+import {createStore} from 'auger-state';
+
+const initialState = {
+  userPreferences: {tabSpacing: 4, favoriteFood: 'tofu'},
+  counter: {value: 0},
+};
+
+const store = createStore(initialState);
+
+// If you want to subscribe to the entire state you can pass an empty array as
+// the first parameter of subscribe.
+const unsubLogging = store.subscribe([], () => console.log(store.getState()));
+
+const unsubLocalStorage = store.subscribe(['userPreferences'], () =>
+  localStorage.setItem(
+    'userPreferences',
+    JSON.stringify(store.getState().userPreferences),
+  ),
+);
+
+// This will update the state and the entire state will be logged to the console
+store.update((draft) => {
+  draft.counter.value++;
+});
+
+// This will log the state to the console and save the userPreferences to localStorage
+store.update((draft) => {
+  draft.userPreferences.tabSpacing = 2;
+});
+
+// Unsubscribe from the store
+unsubLogging();
+unsubLocalStorage();
+```
+
 ## `useAuger`
 
 # Backstory
@@ -88,8 +173,7 @@ In multiple times in my career I've written large, performance sensitive React a
 # Roadmap
 
 1. Redux Dev Tools integration
-2. Effect system
-3. Allow you to tag actions for dev tools
+2. Maps, Sets, and immerable objects
 
 # License
 
