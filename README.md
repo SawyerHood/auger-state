@@ -6,7 +6,7 @@
 
 # Overview
 
-An auger is a large drilled used to bore holes in the ground. `auger-state` lets your components drill down and subscribe only to parts of your global state. `auger-state` merges the benefits of a global app-level store and merges it with the performance of decentralized state management. It is designed with Typescript in mind so you get type-safely and solid auto complete when using it.
+An auger is a large drilled used to bore holes in the ground. `auger-state` lets your components drill down and subscribe only to parts of your global state. `auger-state` takes the benefits of a global app-level store and merges it with the performance of decentralized state management. It is designed with Typescript in mind so you get type-safely and solid auto complete without having to jump through hoops.
 
 At the moment `auger-state` is still experimental and the API will likely change. It isn't fully battle tested yet, so I would be cautious of using it in your hyper critical production app at this time.
 
@@ -17,7 +17,7 @@ At the moment `auger-state` is still experimental and the API will likely change
 - Don't worry about creating complex memoized selectors, only subscribe to parts of the state that you care about.
 - The more subscribed components the better! Auger State scales well when thousands of components are subscribed to different parts of the store.
 - Just mutate your state! Auger State uses immer to makes sure that a new immutable copy is created and only components that care about the state you changed are updated.
-- Minimal api: only two functions `createStore` and `useAuger`.
+- Minimal api: only two functions exported: `createStore` and `useAuger`.
 - Typescript first. Unlike older state management solutions, Auger State is designed to be type safe and fully lean on your editor's auto complete.
 
 # Install
@@ -54,10 +54,12 @@ const store = createStore(INITIAL_STATE);
 
 export const App = React.memo(() => {
   // The useAuger callback returns a typed object that will
-  // let us drill down and subscribe to part of our state
+  // let us drill down and subscribe to part of our state.
   const auger = useAuger(store);
   // This component will only update when the counter updates,
-  //  not when any other part of the state updates
+  // not when any other part of the state updates.
+  // Here we drill down to the counter and call `$()` to
+  // subscribe to the counter.
   const [counter, updateCounter] = auger.counter.$();
 
   return (
@@ -82,7 +84,7 @@ export const App = React.memo(() => {
 
 ## `createStore`
 
-`createStore` takes a single POJO (plain old js object) and returns an `AugerStore` that holds the state. At this time, your state has to be comprised of plain objects, arrays, and primitives. It does not yet support Maps and Sets
+`createStore` takes a single POJO (plain old js object) and returns an `AugerStore` that holds the state. At this time, your state has to be comprised of plain objects, arrays, and primitives. `auger-state` does not yet support `Map` and `Set`.
 
 ### Definition
 
@@ -167,9 +169,9 @@ const MyComponent = React.memo(() => {
 
 ## `AugerStore`
 
-In most cases you will never have to interact with the `AugerStore` directly and will instead just pass it to the `useAuger` hook in your React component. The only time you will probably have to interact with `AugerStore` if you want to either use `AugerStore` with a UI library other than React or if you want to perform some side effects when ever the store changes (ex send something over the network or log when a certain part of the state changes).
+In most cases you will never have to interact with the `AugerStore` directly and will instead just pass it to the `useAuger` hook in your React component. The only time you will probably have to interact with `AugerStore` if you want to either use `AugerStore` with a UI library other than React or if you want to perform some side effects when ever the store changes (ex: send something over the network or log when a certain part of the state changes).
 
-The first method on `AugerStore` is `getState`. It does just what you think it would, return a readonly copy of the state at that point in time. Note that this copy of the state is immutable and won't update as the store updates. You can think of this as a snapshot in time.
+The first method on `AugerStore` is `getState`. It does what you think it would, return a readonly copy of the state at that point in time. Note that this copy of the state is immutable and won't update as the store updates. You can think of this as a snapshot of the state.
 
 The next method on `AugerStore` is `subscribe`. The purpose of `subscribe` is to notify observers if a certain part of the state has been updated. `subscribe` takes 2 parameters. The first is a path of property names that leads to the subset of your state. The second parameter is a callback that should be invoked when that subset of state changes. `subscribe` returns a single function that will unsubscribe the registered callback. To prevent memory leaks always make sure that you call unsubscribe when you are done subscribing to the store.
 
