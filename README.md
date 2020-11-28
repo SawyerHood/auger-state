@@ -226,9 +226,10 @@ unsubLocalStorage();
 ```
 
 # Roadmap
-1. Add Suspense Support
-2. Redux Dev Tools integration
-3. Maps, Sets, and immerable objects
+* Add Suspense Support
+* Redux Dev Tools integration
+* Maps, Sets, and immerable objects
+* React Native Support
 
 # License
 
