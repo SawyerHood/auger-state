@@ -226,9 +226,9 @@ unsubLocalStorage();
 ```
 
 # Roadmap
-
-1. Redux Dev Tools integration
-2. Maps, Sets, and immerable objects
+1. Add Suspense Support
+2. Redux Dev Tools integration
+3. Maps, Sets, and immerable objects
 
 # License
 
