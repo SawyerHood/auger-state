@@ -8,7 +8,7 @@
       "esnext"
     ],
     "moduleResolution": "node",
-    "jsx": "react",
+    "jsx": "react-jsx",
     "sourceMap": true,
     "declaration": true,
     "esModuleInterop": true,
@@ -27,7 +27,8 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true
+    "noEmit": true,
+    "noFallthroughCasesInSwitch": true
   },
   "include": [
     "src"
