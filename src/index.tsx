@@ -1,8 +1,14 @@
 import * as React from 'react';
 import ReactDOM from 'react-dom';
-import type {Draft} from 'immer';
-import {produceWithPatches, enablePatches, setAutoFreeze} from 'immer';
+import {
+  Draft,
+  enableMapSet,
+  produceWithPatches,
+  enablePatches,
+  setAutoFreeze,
+} from 'immer';
 enablePatches();
+enableMapSet();
 setAutoFreeze(false);
 
 const {useRef, useEffect, useState} = React;
@@ -230,6 +236,8 @@ export type Auger<T> = (T extends number
   ? {}
   : T extends boolean
   ? {}
+  : T extends Map<infer K, infer V>
+  ? {get: (key: K) => Auger<V | undefined>}
   : Required<
       {
         [P in keyof T]: Auger<T[P] | NullPart<T[P] | NullPart<T>>>;
@@ -280,7 +288,10 @@ function createAugerHandles<T>(
     $read,
     $update,
     $,
-  };
+    get: (key: any) => {
+      return createAuger((state as any).get(key), [...path, key], onSub, store);
+    },
+  } as any;
 }
 
 function createAuger<T extends any>(
@@ -294,7 +305,12 @@ function createAuger<T extends any>(
   }
   return new Proxy(state as any, {
     get(target, key) {
-      if (key === '$' || key === '$read' || key === '$update') {
+      if (
+        key === '$' ||
+        key === '$read' ||
+        key === '$update' ||
+        key === 'get'
+      ) {
         return createAugerHandles(target, path, onSub, store)[key];
       }
       return createAuger(target[key], [...path, key], onSub, store);
