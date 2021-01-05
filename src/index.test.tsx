@@ -19,7 +19,7 @@ function createTestStore() {
 
 describe('AugerStore', () => {
   const store = createTestStore();
-  const rootCB = jest.fn();
+  const rootCB = jest.fn(() => console.log('yeet'));
   const counterCB = jest.fn();
   const valueCB = jest.fn();
   const usersCB = jest.fn();
@@ -53,9 +53,9 @@ describe('AugerStore', () => {
       state.counter.value++;
     });
 
-    expect(rootCB).toBeCalledTimes(2);
-    expect(counterCB).toBeCalledTimes(1);
-    expect(valueCB).toBeCalledTimes(2);
+    expect(rootCB).toBeCalledTimes(1);
+    expect(counterCB).toBeCalledTimes(0);
+    expect(valueCB).toBeCalledTimes(1);
   });
 
   it('notifies items that are downstream of a set', () => {
