@@ -254,7 +254,7 @@ function createAugerHandles<T>(
 ): AugerHandles<T> {
   const $read = () => {
     onSub(path);
-    return state;
+    return state === UNDEFINED ? undefined : state === NULL ? null : state;
   };
 
   // TODO Sawyer: This can probably be cached based on store and path
@@ -281,7 +281,7 @@ function createAugerHandles<T>(
   };
 
   const $ = (): [T, typeof $update] => {
-    return [$read(), $update];
+    return [$read() as any, $update];
   };
 
   return {
@@ -293,6 +293,9 @@ function createAugerHandles<T>(
     },
   } as any;
 }
+
+const UNDEFINED = Object.freeze({});
+const NULL = Object.freeze({});
 
 function createAuger<T extends any>(
   state: T,
@@ -313,7 +316,17 @@ function createAuger<T extends any>(
       ) {
         return createAugerHandles(target, path, onSub, store)[key];
       }
-      return createAuger(target[key], [...path, key], onSub, store);
+      const newTarget = target[key];
+      return createAuger(
+        newTarget === undefined
+          ? UNDEFINED
+          : newTarget === null
+          ? NULL
+          : newTarget,
+        [...path, key],
+        onSub,
+        store,
+      );
     },
   }) as any;
 }

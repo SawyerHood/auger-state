@@ -19,6 +19,15 @@ function createTestStore() {
   return createStore(state);
 }
 
+type NullableTestState = {
+  users?: {[id: string]: null | {id: number; name: null | string}};
+};
+
+function createNullableStore() {
+  const state: NullableTestState = {};
+  return createStore(state);
+}
+
 describe('AugerStore', () => {
   const store = createTestStore();
   const rootCB = jest.fn();
@@ -144,6 +153,21 @@ describe('useAuger', () => {
     fireEvent.click(handle.getByTestId('food'));
 
     expect(screen.getByTestId('food').textContent).toEqual('tofu');
+  });
+
+  it('allows reading from a deeply nullable path', () => {
+    const store = createNullableStore();
+    function Component() {
+      const auger = useAuger(store);
+      const id = auger.users['sawyer'].id.$read();
+      return <div>{id}</div>;
+    }
+    const {baseElement} = render(<Component />);
+    expect(baseElement.textContent).toBe('');
+    store.update((draft) => {
+      draft.users = {sawyer: {id: 20, name: 'sawyer'}};
+    });
+    expect(baseElement.textContent).toEqual('20');
   });
 
   it('only updates a component if it is listening to part of the state that changed', () => {
