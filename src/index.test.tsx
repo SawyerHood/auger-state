@@ -20,7 +20,7 @@ function createTestStore() {
 }
 
 type NullableTestState = {
-  users?: {[id: string]: null | {id: number; name: null | string}};
+  users?: null | {[id: string]: null | {id: number; name: null | string}};
 };
 
 function createNullableStore() {
