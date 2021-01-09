@@ -84,7 +84,7 @@ export const App = React.memo(() => {
 
 ## `createStore`
 
-`createStore` takes a single POJO (plain old js object) and returns an `AugerStore` that holds the state. At this time, your state has to be comprised of plain objects, arrays, and primitives. `auger-state` does not yet support `Map` and `Set`.
+`createStore` takes a single POJO (plain old js object) and returns an `AugerStore` that holds the state. At this time, your state has to be comprised of plain objects, arrays, Maps, Sets, or primitives.
 
 ### Definition
 
@@ -226,10 +226,10 @@ unsubLocalStorage();
 ```
 
 # Roadmap
-* Add Suspense Support
-* Redux Dev Tools integration
-* Maps, Sets, and immerable objects
-* React Native Support
+
+- Add Suspense Support
+- Redux Dev Tools integration
+- React Native Support
 
 # License
 
