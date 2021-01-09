@@ -6,6 +6,7 @@ type TestState = {
   counter: {value: number};
   items: {id: number; name: string}[];
   users: {[id: string]: {name: string; age: number}};
+  map: Map<string, {food: string}>;
 };
 
 function createTestStore() {
@@ -13,23 +14,38 @@ function createTestStore() {
     counter: {value: 1},
     items: [{id: 1, name: 'hello'}],
     users: {['a']: {name: 'Sawyer', age: 26}},
+    map: new Map([['sawyer', {food: 'taco'}]]),
   };
+  return createStore(state);
+}
+
+type NullableTestState = {
+  users?: null | {[id: string]: null | {id: number; name: null | string}};
+};
+
+function createNullableStore() {
+  const state: NullableTestState = {};
   return createStore(state);
 }
 
 describe('AugerStore', () => {
   const store = createTestStore();
-  const rootCB = jest.fn(() => console.log('yeet'));
+  const rootCB = jest.fn();
   const counterCB = jest.fn();
   const valueCB = jest.fn();
   const usersCB = jest.fn();
   const sawyerNameCB = jest.fn();
+
+  const mapCB = jest.fn();
+  const sawyerFoodCB = jest.fn();
 
   store.subscribe([], rootCB);
   const counterUnsub = store.subscribe(['counter'], counterCB);
   store.subscribe(['counter', 'value'], valueCB);
   store.subscribe(['users'], usersCB);
   store.subscribe(['users', 'a', 'name'], sawyerNameCB);
+  store.subscribe(['map', 'sawyer'], mapCB);
+  store.subscribe(['map', 'sawyer', 'food'], sawyerFoodCB);
 
   it('notifies subscribers along a path', () => {
     store.update((state) => {
@@ -65,6 +81,26 @@ describe('AugerStore', () => {
 
     expect(sawyerNameCB).toBeCalled();
   });
+
+  it('works setting a property in a map', () => {
+    store.update((state) => {
+      state.map.get('sawyer')!.food = 'pizza';
+    });
+
+    expect(rootCB).toBeCalled();
+    expect(mapCB).toBeCalled();
+    expect(sawyerFoodCB).toBeCalled();
+  });
+
+  it('can override a key in a map', () => {
+    store.update((state) => {
+      state.map.set('sawyer', {food: 'tofu'});
+    });
+
+    expect(rootCB).toBeCalled();
+    expect(mapCB).toBeCalled();
+    expect(sawyerFoodCB).toBeCalled();
+  });
 });
 
 describe('useAuger', () => {
@@ -91,6 +127,47 @@ describe('useAuger', () => {
     fireEvent.click(handle.getByTestId('age'));
 
     expect(screen.getByTestId('age').textContent).toEqual('27');
+  });
+
+  it('allows for reading from a map', () => {
+    const store = createTestStore();
+    const Component = () => {
+      const auger = useAuger(store);
+      const food = auger.map.get('sawyer').food.$read();
+      return (
+        <div
+          data-testid="food"
+          onClick={() =>
+            store.update((draft) => {
+              draft.map.get('sawyer')!.food = 'tofu';
+            })
+          }>
+          {food}
+        </div>
+      );
+    };
+
+    const handle = render(<Component />);
+    expect(screen.getByTestId('food').textContent).toEqual('taco');
+
+    fireEvent.click(handle.getByTestId('food'));
+
+    expect(screen.getByTestId('food').textContent).toEqual('tofu');
+  });
+
+  it('allows reading from a deeply nullable path', () => {
+    const store = createNullableStore();
+    function Component() {
+      const auger = useAuger(store);
+      const id = auger.users['sawyer'].id.$read();
+      return <div>{id}</div>;
+    }
+    const {baseElement} = render(<Component />);
+    expect(baseElement.textContent).toBe('');
+    store.update((draft) => {
+      draft.users = {sawyer: {id: 20, name: 'sawyer'}};
+    });
+    expect(baseElement.textContent).toEqual('20');
   });
 
   it('only updates a component if it is listening to part of the state that changed', () => {

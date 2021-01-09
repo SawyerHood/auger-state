@@ -1,8 +1,14 @@
 import * as React from 'react';
 import ReactDOM from 'react-dom';
-import type {Draft} from 'immer';
-import {produceWithPatches, enablePatches, setAutoFreeze} from 'immer';
+import {
+  Draft,
+  enableMapSet,
+  produceWithPatches,
+  enablePatches,
+  setAutoFreeze,
+} from 'immer';
 enablePatches();
+enableMapSet();
 setAutoFreeze(false);
 
 const {useRef, useEffect, useState} = React;
@@ -188,7 +194,7 @@ type SubKey = string | number | symbol;
 type UpdateFn<T> = (draft: Draft<T>) => Draft<T> | void;
 
 // This is the special interface of an Auger.
-interface AugerHandles<T> {
+type AugerHandles<T> = {
   // Returns the current value at a property.
   // When called from a React component this also sets up a subscription
   // To the store.
@@ -200,17 +206,22 @@ interface AugerHandles<T> {
   // the property. This is made to emulate the return shape
   // of the `useState` hook.
   $(): [T, (updater: UpdateFn<T>) => void];
-}
+} & (FilterPrimitives<T, never> extends Map<infer K, infer V>
+  ? {get: (key: K) => Auger<V | undefined | NullPart<T>>}
+  : {});
 
 // This helper type returns if the type can be null | undefined
 // and returns never if it can't be either
-type NullPart<T> = T extends undefined | null
-  ? T
-  : T extends undefined
-  ? T
-  : T extends null
-  ? T
-  : never;
+type NullPart<T> = Exclude<T, NonNullable<T>>;
+type FilterPrimitives<T, U> = T extends
+  | string
+  | number
+  | null
+  | undefined
+  | symbol
+  | boolean
+  ? U
+  : T;
 
 // In the real world an Auger is a large drill that is used for drilling holes
 // in the ground. In auger-state an Auger is an object that lets you drill down
@@ -222,20 +233,17 @@ type NullPart<T> = T extends undefined | null
 // we iterate over all of the values and make sure that are mapped to Augers as well.
 // An important thing to note, if the current node can be nullable, we have to make
 // sure that all of the children's return types can be nullable as well.
-export type Auger<T> = (T extends number
-  ? {}
-  : T extends string
-  ? {}
-  : T extends symbol
-  ? {}
-  : T extends boolean
-  ? {}
-  : Required<
-      {
-        [P in keyof T]: Auger<T[P] | NullPart<T[P] | NullPart<T>>>;
-      }
-    >) &
+//
+// TODO make sure that we filter out array and map methods
+export type Auger<T> = AugerImpl<T, T>;
+
+type AugerImpl<T, U> = (FilterRes<T, U> extends never ? {} : FilterRes<T, U>) &
   AugerHandles<T>;
+
+type FilterRes<T, U> = FilterPrimitives<
+  Required<{[P in keyof T]: Auger<T[P] | NullPart<U>>}>,
+  never
+>;
 
 // This builds up the `$`, `$read`, and `$update` function for a given node.
 function createAugerHandles<T>(
@@ -246,7 +254,7 @@ function createAugerHandles<T>(
 ): AugerHandles<T> {
   const $read = () => {
     onSub(path);
-    return state;
+    return state === UNDEFINED ? undefined : state === NULL ? null : state;
   };
 
   // TODO Sawyer: This can probably be cached based on store and path
@@ -273,15 +281,21 @@ function createAugerHandles<T>(
   };
 
   const $ = (): [T, typeof $update] => {
-    return [$read(), $update];
+    return [$read() as any, $update];
   };
 
   return {
     $read,
     $update,
     $,
-  };
+    get: (key: any) => {
+      return createAuger((state as any).get(key), [...path, key], onSub, store);
+    },
+  } as any;
 }
+
+const UNDEFINED = Object.freeze({});
+const NULL = Object.freeze({});
 
 function createAuger<T extends any>(
   state: T,
@@ -294,10 +308,25 @@ function createAuger<T extends any>(
   }
   return new Proxy(state as any, {
     get(target, key) {
-      if (key === '$' || key === '$read' || key === '$update') {
+      if (
+        key === '$' ||
+        key === '$read' ||
+        key === '$update' ||
+        key === 'get'
+      ) {
         return createAugerHandles(target, path, onSub, store)[key];
       }
-      return createAuger(target[key], [...path, key], onSub, store);
+      const newTarget = target[key];
+      return createAuger(
+        newTarget === undefined
+          ? UNDEFINED
+          : newTarget === null
+          ? NULL
+          : newTarget,
+        [...path, key],
+        onSub,
+        store,
+      );
     },
   }) as any;
 }
