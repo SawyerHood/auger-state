@@ -207,7 +207,7 @@ type AugerHandles<T> = {
   // of the `useState` hook.
   $(): [T, (updater: UpdateFn<T>) => void];
 } & (FilterPrimitives<T, never> extends Map<infer K, infer V>
-  ? {get: (key: K) => V | undefined | NullPart<T>}
+  ? {get: (key: K) => Auger<V | undefined | NullPart<T>>}
   : {});
 
 // This helper type returns if the type can be null | undefined
