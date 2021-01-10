@@ -237,7 +237,11 @@ type FilterPrimitives<T, U> = T extends
 // TODO make sure that we filter out array and map methods
 export type Auger<T> = AugerImpl<T, T>;
 
-type AugerImpl<T, U> = (FilterRes<T, U> extends never ? {} : FilterRes<T, U>) &
+type AugerImpl<T, U> = (FilterPrimitives<T, U> extends (infer A)[]
+  ? Auger<A | NullPart<U>>[]
+  : FilterRes<T, U> extends never
+  ? {}
+  : FilterRes<T, U>) &
   AugerHandles<T>;
 
 type FilterRes<T, U> = FilterPrimitives<

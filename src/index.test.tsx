@@ -4,7 +4,7 @@ import * as React from 'react';
 
 type TestState = {
   counter: {value: number};
-  items: {id: number; name: string}[];
+  items?: {id: number; name: string}[];
   users: {[id: string]: {name: string; age: number}};
   map: Map<string, {food: string}>;
 };
@@ -234,5 +234,22 @@ describe('useAuger', () => {
     expect(screen.getByTestId('counter').textContent).toBe('2');
     expect(onAgeRender).toBeCalledTimes(2);
     expect(onCounterRender).toBeCalledTimes(2);
+  });
+
+  it('correctly types deep auger paths', () => {
+    const store = createTestStore();
+    function Test() {
+      const auger = useAuger(store);
+      const name: undefined | string = auger.items[0].name.$read();
+      const food: undefined | string = auger.map.get('sawyer').food.$read();
+      const age: number = auger.users['id'].age.$read();
+
+      return (
+        <div>
+          {name} {food} {age}
+        </div>
+      );
+    }
+    render(<Test />);
   });
 });
