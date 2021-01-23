@@ -13,6 +13,9 @@ setAutoFreeze(false);
 
 const {useRef, useEffect, useState} = React;
 
+const EMPTY_OBJECT = {};
+const EMPTY_FN = () => {};
+
 // This function is a function that will be triggered when a node in the
 // subscriber tree updates
 type Subscription = () => void;
@@ -153,6 +156,10 @@ class AugerStore<T> {
     });
   }
 
+  auger(onRead: (path: SubKey[]) => void = EMPTY_FN): Auger<T> {
+    return createAuger(this, [], onRead);
+  }
+
   // Recursively notify all children of a SubscriberNode
   // We might want to clear all of these subscriptions as we go down
   // in the future, but the hooks takes care of this for us, if you
@@ -249,19 +256,50 @@ type FilterRes<T, U> = FilterPrimitives<
   never
 >;
 
+function createAuger<T>(
+  store: AugerStore<T>,
+  path: SubKey[],
+  onRead: (p: SubKey[]) => void,
+): Auger<T> {
+  const result = new Proxy(EMPTY_OBJECT, {
+    get(_, key) {
+      if (
+        key === '$' ||
+        key === '$read' ||
+        key === '$update' ||
+        key === 'get'
+      ) {
+        return createAugerHandles(store, path, onRead)[key];
+      }
+      return createAuger(store, [...path, key], onRead);
+    },
+  });
+
+  return result as any;
+}
+
 // This builds up the `$`, `$read`, and `$update` function for a given node.
 function createAugerHandles<T>(
-  state: T,
-  path: SubKey[],
-  onSub: (p: SubKey[]) => void,
   store: AugerStore<any>,
+  path: SubKey[],
+  onRead: (p: SubKey[]) => void,
 ): AugerHandles<T> {
   const $read = () => {
-    onSub(path);
-    return state === UNDEFINED ? undefined : state === NULL ? null : state;
+    onRead(path);
+    let value = store.getState();
+    for (const key of path) {
+      if (value instanceof Map) {
+        value = value.get(key);
+      } else if (value == null) {
+        return value;
+      } else {
+        value = value[key as string];
+      }
+    }
+
+    return value;
   };
 
-  // TODO Sawyer: This can probably be cached based on store and path
   const $update = (fn: UpdateFn<T>) => {
     store.update((draft) => {
       let subNode = draft;
@@ -275,7 +313,11 @@ function createAugerHandles<T>(
       const newNode = fn(subNode);
       if (newNode !== undefined) {
         if (parent && lastProp != null) {
-          parent[lastProp] = newNode;
+          if (parent instanceof Map) {
+            parent.set(lastProp, newNode);
+          } else {
+            parent[lastProp] = newNode;
+          }
         } else {
           return newNode;
         }
@@ -293,46 +335,9 @@ function createAugerHandles<T>(
     $update,
     $,
     get: (key: any) => {
-      return createAuger((state as any).get(key), [...path, key], onSub, store);
+      return createAuger(store, [...path, key], onRead);
     },
   } as any;
-}
-
-const UNDEFINED = Object.freeze({});
-const NULL = Object.freeze({});
-
-function createAuger<T extends any>(
-  state: T,
-  path: SubKey[],
-  onSub: (p: SubKey[]) => void,
-  store: AugerStore<any>,
-): Auger<T> {
-  if (typeof state !== 'object' || state == null) {
-    return createAugerHandles(state, path, onSub, store) as any;
-  }
-  return new Proxy(state as any, {
-    get(target, key) {
-      if (
-        key === '$' ||
-        key === '$read' ||
-        key === '$update' ||
-        key === 'get'
-      ) {
-        return createAugerHandles(target, path, onSub, store)[key];
-      }
-      const newTarget = target[key];
-      return createAuger(
-        newTarget === undefined
-          ? UNDEFINED
-          : newTarget === null
-          ? NULL
-          : newTarget,
-        [...path, key],
-        onSub,
-        store,
-      );
-    },
-  }) as any;
 }
 
 // This is the main public interface that React users interface with.
@@ -362,12 +367,7 @@ export function useAuger<T>(store: AugerStore<T>): Auger<T> {
     };
   });
 
-  return createAuger(
-    store.getState() as T,
-    [],
-    (p) => subs.current.push(p),
-    store,
-  ) as any;
+  return createAuger(store, [], (p) => subs.current.push(p)) as any;
 }
 
 export function createStore<T>(state: T): AugerStore<T> {
