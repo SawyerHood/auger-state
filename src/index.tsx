@@ -6,7 +6,9 @@ import {
   produceWithPatches,
   enablePatches,
   setAutoFreeze,
+  Patch,
 } from 'immer';
+import {visitPromises} from './utils';
 enablePatches();
 enableMapSet();
 setAutoFreeze(false);
@@ -19,6 +21,10 @@ const EMPTY_FN = () => {};
 // This function is a function that will be triggered when a node in the
 // subscriber tree updates
 type Subscription = () => void;
+
+type PromiseResult<T> =
+  | {type: 'complete'; value: T}
+  | {type: 'error'; error: any};
 
 /*
 SubscriberNode is the type that makes the AugerStore work. Most app states
@@ -100,15 +106,25 @@ function createSubNode(): SubscriberNode {
   return {subs: new Set(), children: new Map()};
 }
 
+type Options = {
+  enablePromises: boolean;
+};
+
 // This is the class that manages all of the subscriptions to different nodes,
 // is responsible for keeping a copy of the current state, updates the state,
 // and most importantly notifies subscribers when the state updates.
 class AugerStore<T> {
   private root: SubscriberNode = createSubNode();
   private state: T;
+  private promiseValues: WeakMap<
+    Promise<any>,
+    PromiseResult<any>
+  > = new WeakMap();
+  private options: Options;
 
-  constructor(state: T) {
+  constructor(state: T, options: Options = {enablePromises: false}) {
     this.state = state;
+    this.options = {...options};
   }
 
   getState(): Readonly<T> {
@@ -147,6 +163,10 @@ class AugerStore<T> {
     const [nextState, patches] = produceWithPatches(this.state, fn);
     this.state = nextState as T;
 
+    if (this.options.enablePromises) {
+      this.registerPromises(patches);
+    }
+
     // TODO Sawyer: I should make sure that this works with React Native.
     // I need to update this so it uses the ReactNative version of batchedUpdates.
     ReactDOM.unstable_batchedUpdates(() => {
@@ -158,6 +178,22 @@ class AugerStore<T> {
 
   auger(onRead: (path: SubKey[]) => void = EMPTY_FN): Auger<T> {
     return createAuger(this, [], onRead);
+  }
+
+  getPromiseResult(promise: Promise<any>): PromiseResult<any> | undefined {
+    return this.promiseValues.get(promise);
+  }
+
+  private registerPromises(patches: Patch[]) {
+    for (const patch of patches) {
+      visitPromises(patch.value, (p) => {
+        p.then((value) => {
+          this.promiseValues.set(p, {type: 'complete', value});
+        }).catch((error) => {
+          this.promiseValues.set(p, {type: 'error', error});
+        });
+      });
+    }
   }
 
   // Recursively notify all children of a SubscriberNode
@@ -246,6 +282,8 @@ export type Auger<T> = AugerImpl<T, T>;
 
 type AugerImpl<T, U> = (FilterPrimitives<T, U> extends (infer A)[]
   ? Auger<A | NullPart<U>>[]
+  : FilterPrimitives<T, U> extends Promise<infer P>
+  ? Auger<P | NullPart<U>>
   : FilterRes<T, U> extends never
   ? {}
   : FilterRes<T, U>) &
@@ -278,6 +316,20 @@ function createAuger<T>(
   return result as any;
 }
 
+function unwrapPromise(store: AugerStore<any>, value: any): any {
+  if (value instanceof Promise) {
+    const promiseResult = store.getPromiseResult(value);
+    if (!promiseResult) {
+      throw value;
+    } else if (promiseResult.type === 'error') {
+      throw promiseResult.error;
+    } else {
+      return promiseResult.value;
+    }
+  }
+  return value;
+}
+
 // This builds up the `$`, `$read`, and `$update` function for a given node.
 function createAugerHandles<T>(
   store: AugerStore<any>,
@@ -286,7 +338,7 @@ function createAugerHandles<T>(
 ): AugerHandles<T> {
   const $read = () => {
     onRead(path);
-    let value = store.getState();
+    let value = unwrapPromise(store, store.getState());
     for (const key of path) {
       if (value instanceof Map) {
         value = value.get(key);
@@ -295,6 +347,7 @@ function createAugerHandles<T>(
       } else {
         value = value[key as string];
       }
+      value = unwrapPromise(store, value);
     }
 
     return value;
