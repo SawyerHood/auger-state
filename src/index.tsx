@@ -11,7 +11,7 @@ enablePatches();
 enableMapSet();
 setAutoFreeze(false);
 
-const {useRef, useEffect, useState} = React;
+const {useRef, useEffect, useState, useCallback} = React;
 
 const EMPTY_OBJECT = {};
 const EMPTY_FN = () => {};
@@ -367,7 +367,14 @@ export function useAuger<T>(store: AugerStore<T>): Auger<T> {
     };
   });
 
-  return createAuger(store, [], (p) => subs.current.push(p)) as any;
+  const onRead = useCallback(
+    (p: SubKey[]) => {
+      subs.current.push(p);
+    },
+    [subs],
+  );
+
+  return store.auger(onRead) as any;
 }
 
 export function createStore<T>(state: T): AugerStore<T> {
