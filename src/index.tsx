@@ -125,6 +125,15 @@ class AugerStore<T> {
   constructor(state: T, options: Options = {enablePromises: false}) {
     this.state = state;
     this.options = {...options};
+    if (this.options.enablePromises) {
+      this.registerPromises([
+        {
+          op: 'add',
+          path: [],
+          value: state,
+        },
+      ]);
+    }
   }
 
   getState(): Readonly<T> {
@@ -430,6 +439,6 @@ export function useAuger<T>(store: AugerStore<T>): Auger<T> {
   return store.auger(onRead) as any;
 }
 
-export function createStore<T>(state: T): AugerStore<T> {
-  return new AugerStore(state);
+export function createStore<T>(state: T, options?: Options): AugerStore<T> {
+  return new AugerStore(state, options);
 }

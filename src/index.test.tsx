@@ -19,6 +19,12 @@ function createTestStore() {
   return createStore(state);
 }
 
+function waitForPromises(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
 type NullableTestState = {
   users?: null | {[id: string]: null | {id: number; name: null | string}};
 };
@@ -100,6 +106,73 @@ describe('AugerStore', () => {
     expect(rootCB).toBeCalled();
     expect(mapCB).toBeCalled();
     expect(sawyerFoodCB).toBeCalled();
+  });
+});
+
+describe('AugerStore enablePromises', () => {
+  let initialResolve = (_n: number) => {};
+  let initialReject = (_e: Error) => {};
+  let initialPromise = new Promise<number>((resolve, reject) => {
+    initialResolve = resolve;
+    initialReject = reject;
+  });
+  const store = createStore(
+    {path: {promise: initialPromise}},
+    {enablePromises: true},
+  );
+
+  it('can read a value above a promise', () => {
+    expect(store.auger().path.$read()).toEqual({promise: initialPromise});
+  });
+
+  it('throws when reading an unresolved promise', () => {
+    let resPromise: Promise<number> | null = null;
+    try {
+      store.auger().path.promise.$read();
+    } catch (e) {
+      resPromise = e;
+    }
+    expect(resPromise).toBe(initialPromise);
+  });
+
+  it('returns a value if the promise is resolved', async () => {
+    initialResolve(42);
+    await waitForPromises();
+    expect(store.auger().path.promise.$read()).toBe(42);
+  });
+
+  it('throws after resetting a promise', () => {
+    initialPromise = new Promise<number>((resolve, reject) => {
+      initialResolve = resolve;
+      initialReject = reject;
+    });
+
+    store.update((draft) => {
+      draft.path.promise = initialPromise;
+    });
+
+    let resPromise: Promise<number> | null = null;
+    try {
+      store.auger().path.promise.$read();
+    } catch (e) {
+      resPromise = e;
+    }
+    expect(resPromise).toBe(initialPromise);
+  });
+
+  it('throws when reading a rejected promise', async () => {
+    const thrown = new Error('Yeeted');
+    initialReject(thrown);
+    await waitForPromises();
+
+    let error: Error | null = null;
+    try {
+      store.auger().path.promise.$read();
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error).toBe(thrown);
   });
 });
 
