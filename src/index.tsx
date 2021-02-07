@@ -442,3 +442,5 @@ export function useAuger<T>(store: AugerStore<T>): Auger<T> {
 export function createStore<T>(state: T, options?: Options): AugerStore<T> {
   return new AugerStore(state, options);
 }
+
+export {Suspense} from './suspense';
